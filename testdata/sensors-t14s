@@ -1,0 +1,107 @@
+{
+   "iwlwifi_1-virtual-0":{
+      "Adapter": "Virtual device",
+      "temp1":{
+         "temp1_input": 43.000
+      }
+   },
+   "amdgpu-pci-0700":{
+      "Adapter": "PCI adapter",
+      "vddgfx":{
+         "in0_input": 1.181
+      },
+      "vddnb":{
+         "in1_input": 0.781
+      },
+      "edge":{
+         "temp1_input": 48.000
+      },
+      "PPT":{
+         "power1_input": 5.000
+      }
+   },
+   "nvme-pci-0100":{
+      "Adapter": "PCI adapter",
+      "Composite":{
+         "temp1_input": 37.850,
+         "temp1_max": 80.850,
+         "temp1_min": -273.150,
+         "temp1_crit": 81.850,
+         "temp1_alarm": 0.000
+      },
+      "Sensor 1":{
+         "temp2_input": 37.850,
+         "temp2_max": 65261.850,
+         "temp2_min": -273.150
+      },
+      "Sensor 2":{
+         "temp3_input": 38.850,
+         "temp3_max": 65261.850,
+         "temp3_min": -273.150
+      }
+   },
+   "BAT0-acpi-0":{
+      "Adapter": "ACPI interface",
+      "in0":{
+         "in0_input": 12.871
+      },
+      "power1":{
+         "power1_input": 0.000
+      }
+   },
+   "k10temp-pci-00c3":{
+      "Adapter": "PCI adapter",
+      "Tctl":{
+         "temp1_input": 49.875
+      }
+   },
+   "thinkpad-isa-0000":{
+      "Adapter": "ISA adapter",
+      "fan1":{
+         "fan1_input": 3000.000
+      },
+      "fan2":{
+         "fan2_input": 3000.000
+      },
+      "CPU":{
+         "temp1_input": 50.000
+      },
+      "GPU":{
+         "temp2_input": 0.000
+      },
+      "temp3":{
+         "temp3_input": 0.000
+      },
+      "temp4":{
+         "temp4_input": 0.000
+      },
+      "temp5":{
+         "temp5_input": 0.000
+      },
+      "temp6":{
+         "temp6_input": 0.000
+      },
+      "temp7":{
+         "temp7_input": 0.000
+      },
+      "temp8":{
+
+      }
+   },
+   "nvme-pci-0500":{
+      "Adapter": "PCI adapter",
+      "Composite":{
+         "temp1_input": 41.850,
+         "temp1_max": 81.850,
+         "temp1_min": -0.150,
+         "temp1_crit": 85.850,
+         "temp1_alarm": 0.000
+      }
+   },
+   "acpitz-acpi-0":{
+      "Adapter": "ACPI interface",
+      "temp1":{
+         "temp1_input": 50.000
+      }
+   }
+}

@@ -1,0 +1,12 @@
+[package]
+name = "thinkfan-tui"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+crossterm = "*"
+ratatui = "*"
+serde = "*"
+serde_json = "*"
+whoami = "*"
