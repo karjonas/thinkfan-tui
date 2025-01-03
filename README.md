@@ -61,7 +61,7 @@ To build and run `thinkfan-tui`, checkout the repository and run:
 
 Please report any issues you find at
 https://github.com/karjonas/thinkfan-tui/issues. If your laptop model
-is not in the list of tested laptop, feel free to test it add it to the
+is not in the list of tested laptops, feel free to test it add it to the
 list. Outputs from the `sensors -j` command are also appreciated for
 more test coverage on different laptops.
 
