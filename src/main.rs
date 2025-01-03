@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn sensors_t14s() {
-        let json_str: String = std::fs::read_to_string("testdata/sensors-t14s").unwrap();
+        let json_str: String = std::fs::read_to_string("testdata/sensors-t14s-amd-gen1").unwrap();
         let adapters = parse_adapters(json_str.as_str());
         assert_eq!(adapters.len(), 7);
 
