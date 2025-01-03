@@ -18,6 +18,10 @@ The application continously runs the `sensors` command to read temperatures and 
 | F    | Set fan speed to full           |
 | Q    | Quit application                |
 
+# Tested Laptops
+
+- T14s AMD Gen 1
+
 # Dependencies
 
 The project uses `lm-sensors` and `policykit`. These can be installed with the commands below.
