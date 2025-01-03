@@ -1,13 +1,17 @@
-
 # thinkfan-tui
 
-A terminal-based Linux application for fan control and temperature monitoring on ThinkPad laptops.
+A terminal-based Linux application for fan control and temperature
+monitoring on ThinkPad laptops.
 
 ![Screenshot](screenshot.gif "Screenshot")
 
 # How it Works?
 
-The application continously runs the `sensors` command to read temperatures and display these in the terminal. To control the fan speed, commands are written to the `/proc/acpi/ibm/fan` file. If the user lacks permissions to do so the owner of the file is changed to the current user by calling the `pkexec` command.
+The application continously runs the `sensors` command to read
+temperatures and display these in the terminal. To control the fan speed,
+commands are written to the `/proc/acpi/ibm/fan` file. If the user lacks
+permissions to do so the owner of the file is changed to the current
+user by calling the `pkexec` command.
 
 # Keyboard Shortcuts
 
@@ -24,7 +28,8 @@ The application continously runs the `sensors` command to read temperatures and 
 
 # Dependencies
 
-The project uses `lm-sensors` and `policykit`. These can be installed with the commands below.
+The project uses `lm-sensors` and `policykit`. These can be installed
+with the commands below.
 
 ## Ubuntu
 
@@ -38,11 +43,15 @@ The project uses `lm-sensors` and `policykit`. These can be installed with the c
 
 ## Pre-built
 
-The easiest way is to download the latest binary from https://github.com/karjonas/thinkfan-tui/releases, unzip it, make it executable and run.
+The easiest way is to download the latest binary from
+https://github.com/karjonas/thinkfan-tui/releases, unzip it, make it
+executable and run.
 
 ## Building
 
-This project is written in the rust programming language and is built using cargo, see https://www.rust-lang.org/tools/install for installation instructions.
+This project is written in the rust programming language and is built
+using cargo, see https://www.rust-lang.org/tools/install for installation
+instructions.
 
 To build and run `thinkfan-tui`, checkout the repository and run:
 
@@ -50,7 +59,11 @@ To build and run `thinkfan-tui`, checkout the repository and run:
 
 # Contributing
 
-Please report any issues you find at https://github.com/karjonas/thinkfan-tui/issues. If your laptop model is not in the list of tested laptop, feel free to test it add it to the list. Outputs from the `sensors -j` command are also appreciated for more test coverage on different laptops.
+Please report any issues you find at
+https://github.com/karjonas/thinkfan-tui/issues. If your laptop model
+is not in the list of tested laptop, feel free to test it add it to the
+list. Outputs from the `sensors -j` command are also appreciated for
+more test coverage on different laptops.
 
 # License
 
@@ -62,4 +75,5 @@ This project is hosted at https://github.com/karjonas/thinkfan-tui
 
 # Acknowledgements
 
-`thinkfan-tui` is inspired by [Thinkfan UI](https://github.com/zocker-160/thinkfan-ui).
+`thinkfan-tui` is inspired by
+[Thinkfan UI](https://github.com/zocker-160/thinkfan-ui).
