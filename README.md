@@ -42,29 +42,30 @@ with the commands below.
 
 # Running
 
+## Using crates.io (preferred)
+
+This project is written in the rust programming language
+and is built using the cargo package manager, see
+https://www.rust-lang.org/tools/install for installation instructions.
+
+After rust and cargo is installed you can install `thinkfan-tui` from
+crates.io by running:
+
+> cargo install thinkfan-tui
+
 ## Pre-built
 
-The easiest way is to download the latest binary from
-https://github.com/karjonas/thinkfan-tui/releases, unzip it, make it
-executable and run.
-
-## Building
-
-This project is written in the rust programming language and is built
-using cargo, see https://www.rust-lang.org/tools/install for installation
-instructions.
-
-To build and run `thinkfan-tui`, checkout the repository and run:
-
-> cargo run --release
+There are also pre-built binaries available at
+https://github.com/karjonas/thinkfan-tui/releases. Unzip the binary,
+make it executable and run.
 
 # Contributing
 
 Please report any issues you find at
 https://github.com/karjonas/thinkfan-tui/issues. If your laptop model
-is not in the list of tested laptops, feel free to test it add it to the
-list. Outputs from the `sensors -j` command are also appreciated for
-more test coverage on different laptops.
+is not in the list of tested laptops, feel free to test it add it to
+the list. Outputs from the `sensors -j` command are also appreciated
+for more test coverage on different laptops.
 
 # License
 
