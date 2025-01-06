@@ -3,6 +3,13 @@ name = "thinkfan-tui"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+description = "A terminal-based Linux application for fan control and temperature monitoring on ThinkPad laptops."
+homepage = "https://github.com/karjonas/thinkfan-tui"
+repository = "https://github.com/karjonas/thinkfan-tui"
+readme = "README.md"
+exclude = ["/testdata", "/.github"]
+keywords = ["thinkpad", "terminal", "fan", "commandline", "tui"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 crossterm = "0.28.1"
