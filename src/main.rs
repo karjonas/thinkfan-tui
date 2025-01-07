@@ -185,7 +185,7 @@ impl App {
             .take(3)
             .map(|line| {
                 let split: Vec<_> = line.split_whitespace().collect();
-                format!("{} {:>8}", split[0], split[1])
+                format!("{} {:>10}", split[0], split[1])
             })
             .collect();
     }
