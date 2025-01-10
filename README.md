@@ -55,6 +55,11 @@ crates.io by running:
 
 > cargo install thinkfan-tui
 
+#### Arch User Repository (AUR)
+
+For Arch Linux users the package is available in the AUR:
+https://aur.archlinux.org/packages/thinkfan-tui
+
 #### Pre-built
 
 There are also pre-built binaries available at
