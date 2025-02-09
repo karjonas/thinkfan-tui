@@ -26,6 +26,7 @@ user by calling the `pkexec` command.
 
 - T14s AMD Gen 1
 - T490
+- E14 Intel Gen 6
 
 ## Getting Started
 
