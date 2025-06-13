@@ -22,8 +22,9 @@ use ratatui::prelude::Layout;
 static PATH_FAN: &str = "/proc/acpi/ibm/fan";
 
 fn main() -> io::Result<()> {
-    if !check_permissions() {
-        update_permissions();
+    if !check_permissions() && !update_permissions() {
+        println!("Error: could not update permissions");
+        return Ok(());
     }
 
     let mut terminal = ratatui::init();
@@ -200,14 +201,15 @@ impl App {
     }
 }
 
-fn update_permissions() {
+fn update_permissions() -> bool {
     let username = whoami::username();
-    let _output = Command::new("pkexec")
+    let output = Command::new("pkexec")
         .arg("chown")
         .arg(username)
         .arg(PATH_FAN)
         .output()
         .expect("failed to run chown command");
+    return output.status.success() && output.status.code().unwrap_or(-1) == 0;
 }
 
 fn check_permissions() -> bool {
