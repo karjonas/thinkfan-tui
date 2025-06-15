@@ -17,9 +17,25 @@ use ratatui::{
 };
 
 use ratatui::prelude::Constraint;
+use ratatui::prelude::Direction;
 use ratatui::prelude::Layout;
 
+use ratatui::prelude::Alignment;
+use ratatui::style::Color;
+use ratatui::style::Style;
+use ratatui::text::Span;
+
 static PATH_FAN: &str = "/proc/acpi/ibm/fan";
+
+// Light (foreground) filled bar colors
+static GREEN_LIGHT: Color = Color::Rgb(165, 183, 0); // #a5b700
+static YELLOW_LIGHT: Color = Color::Rgb(227, 168, 43); // #e3a82b
+static RED_LIGHT: Color = Color::Rgb(204, 31, 26); // #cc1f1a
+
+// Dark (background) bar colors
+static GREEN_DARK: Color = Color::Rgb(68, 68, 37); // #444425
+static YELLOW_DARK: Color = Color::Rgb(94, 78, 40); // #5e4e28
+static RED_DARK: Color = Color::Rgb(76, 32, 32); // #4c2020
 
 fn main() -> io::Result<()> {
     if !check_permissions() && !update_permissions() {
@@ -36,7 +52,7 @@ fn main() -> io::Result<()> {
 #[derive(Debug, Default, Clone)]
 pub struct Input {
     name: String,
-    temp: String,
+    temp: f64,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -93,7 +109,7 @@ fn parse_adapters(json_str: &str) -> Vec<Adapter> {
         for (name, temp) in curr_inputs {
             let mut input = Input::default();
             input.name = name;
-            input.temp = temp;
+            input.temp = temp.trim().parse::<f64>().unwrap_or(-99.0);
             adapter.inputs.push(input);
         }
         adapters.push(adapter);
@@ -233,70 +249,6 @@ fn lines_to_text(lines: &Vec<String>) -> Text {
     );
 }
 
-fn pad_right(input: &str, width: usize) -> String {
-    let mut result = input.to_string();
-    for _i in result.len()..width {
-        result.push(' ');
-    }
-    return result;
-}
-
-fn adapters_to_table(adapters: &Vec<Adapter>) -> Paragraph {
-    let mut rows = Vec::new();
-    let mut max_widths: [usize; 3] = [7, 5, 9];
-
-    for adapter in adapters {
-        for input in &adapter.inputs {
-            max_widths[0] = std::cmp::max(max_widths[0], adapter.name.len());
-            max_widths[1] = std::cmp::max(max_widths[1], input.name.len());
-            max_widths[2] = std::cmp::max(max_widths[2], input.temp.len());
-        }
-    }
-
-    let line_width = max_widths[0] + max_widths[1] + max_widths[2];
-
-    let header = pad_right("  Adapter", max_widths[0] + 5)
-        + pad_right("Input", max_widths[1] + 3).as_str()
-        + pad_right("Temp. °C", max_widths[2] + 2).as_str();
-    rows.push(Line::from(header));
-
-    let mut head_border = String::with_capacity(line_width + 10);
-    head_border += "┏";
-    head_border += "━".repeat(max_widths[0] + 2).as_str();
-    head_border += "┳";
-    head_border += "━".repeat(max_widths[1] + 2).as_str();
-    head_border += "┳";
-    head_border += "━".repeat(max_widths[2] + 2).as_str();
-    head_border += "┓";
-    rows.push(Line::from(head_border));
-
-    for adapter in adapters {
-        for input in adapter.inputs.clone() {
-            let mut row = String::with_capacity(line_width + 10);
-            row += "┃ ";
-            row += pad_right(adapter.name.as_str(), max_widths[0]).as_str();
-            row += " ┃ ";
-            row += pad_right(input.name.as_str(), max_widths[1]).as_str();
-            row += " ┃ ";
-            row += pad_right(input.temp.as_str(), max_widths[2]).as_str();
-            row += " ┃";
-            rows.push(Line::from(row));
-        }
-    }
-
-    let mut bottom_border = String::with_capacity(line_width + 10);
-    bottom_border += "┗";
-    bottom_border += "━".repeat(max_widths[0] + 2).as_str();
-    bottom_border += "┻";
-    bottom_border += "━".repeat(max_widths[1] + 2).as_str();
-    bottom_border += "┻";
-    bottom_border += "━".repeat(max_widths[2] + 2).as_str();
-    bottom_border += "┛";
-    rows.push(Line::from(bottom_border));
-
-    return Paragraph::new(rows);
-}
-
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title_up = Line::from(" Fan Info ".bold());
@@ -311,6 +263,7 @@ impl Widget for &App {
             ", Quit ".into(),
             "<Q> ".bold(),
         ]);
+
         let block_up = Block::bordered()
             .title(title_up.centered())
             .border_set(border::THICK);
@@ -320,19 +273,107 @@ impl Widget for &App {
             .title_bottom(instructions.centered())
             .border_set(border::THICK);
 
-        let areas = Layout::vertical([Constraint::Max(5), Constraint::Min(0)])
-            .split(area)
-            .to_vec();
+        let areas = Layout::vertical([Constraint::Max(5), Constraint::Min(0)]).split(area);
 
+        // Top info block
         Paragraph::new(lines_to_text(&self.lines))
             .centered()
             .block(block_up)
             .render(areas[0], buf);
 
-        adapters_to_table(&self.adapters)
-            .centered()
-            .block(block_down)
-            .render(areas[1], buf);
+        // Layout for adapter content
+        let inner_area = block_down.inner(areas[1]);
+        let padded_area = Rect {
+            x: inner_area.x + 1,
+            y: inner_area.y,
+            width: inner_area.width.saturating_sub(2),
+            height: inner_area.height,
+        };
+
+        // Check if we have enough space to render bars
+        let total_inputs: usize = self.adapters.iter().map(|a| a.inputs.len()).sum();
+        let min_required_height = total_inputs * 2;
+
+        let render_bars = padded_area.height as usize >= min_required_height;
+
+        let mut constraints = Vec::with_capacity(total_inputs * 2);
+        for _ in 0..total_inputs {
+            constraints.push(Constraint::Length(1)); // label
+            if render_bars {
+                constraints.push(Constraint::Length(1)); // bar
+            }
+        }
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(constraints)
+            .split(padded_area);
+
+        let mut i = 0;
+        for adapter in &self.adapters {
+            for input in &adapter.inputs {
+                let label = format!("{} | {}", adapter.name, input.name);
+                let fill_ratio = (input.temp / 100.0).clamp(0.0, 1.0);
+                let dot_color = match fill_ratio {
+                    t if t < 0.45 => GREEN_LIGHT,
+                    t if t < 0.75 => YELLOW_LIGHT,
+                    _ => RED_LIGHT,
+                };
+
+                let temp_spans = Line::from(vec![
+                    Span::raw(format!("{}°C ", input.temp as i8)),
+                    Span::styled("▊", Style::default().fg(dot_color)),
+                ]);
+
+                // Row: label + temperature
+                let row_chunks = Layout::horizontal([Constraint::Min(0), Constraint::Length(6)])
+                    .split(chunks[i]);
+
+                Paragraph::new(Line::from(Span::raw(label))).render(row_chunks[0], buf);
+                Paragraph::new(temp_spans)
+                    .alignment(Alignment::Right)
+                    .render(row_chunks[1], buf);
+
+                i += 1;
+
+                // Conditionally render the bar
+                if render_bars {
+                    let width = chunks[i].width as usize;
+                    let filled = (fill_ratio * width as f64).round() as usize;
+
+                    let spans: Vec<Span> = (0..width)
+                        .map(|idx| {
+                            let ratio = idx as f64 / width as f64;
+                            let color = if idx < filled {
+                                if ratio < 0.45 {
+                                    GREEN_LIGHT
+                                } else if ratio < 0.75 {
+                                    YELLOW_LIGHT
+                                } else {
+                                    RED_LIGHT
+                                }
+                            } else {
+                                if ratio < 0.45 {
+                                    GREEN_DARK
+                                } else if ratio < 0.75 {
+                                    YELLOW_DARK
+                                } else {
+                                    RED_DARK
+                                }
+                            };
+
+                            Span::styled("▀", Style::default().fg(color))
+                        })
+                        .collect();
+
+                    Paragraph::new(Line::from(spans)).render(chunks[i], buf);
+                    i += 1;
+                }
+            }
+        }
+
+        // Final block border
+        block_down.render(areas[1], buf);
     }
 }
 
@@ -348,35 +389,35 @@ mod tests {
 
         assert_eq!(adapters[0].name, "acpitz-acpi-0");
         assert_eq!(adapters[0].inputs[0].name, "temp1");
-        assert_eq!(adapters[0].inputs[0].temp, "50.0");
+        assert_eq!(adapters[0].inputs[0].temp, 50.0);
 
         assert_eq!(adapters[1].name, "amdgpu-pci-0700");
         assert_eq!(adapters[1].inputs[0].name, "edge");
-        assert_eq!(adapters[1].inputs[0].temp, "48.0");
+        assert_eq!(adapters[1].inputs[0].temp, 48.0);
 
         assert_eq!(adapters[2].name, "iwlwifi_1-virtual-0");
         assert_eq!(adapters[2].inputs[0].name, "temp1");
-        assert_eq!(adapters[2].inputs[0].temp, "43.0");
+        assert_eq!(adapters[2].inputs[0].temp, 43.0);
 
         assert_eq!(adapters[3].name, "k10temp-pci-00c3");
         assert_eq!(adapters[3].inputs[0].name, "Tctl");
-        assert_eq!(adapters[3].inputs[0].temp, "49.875");
+        assert_eq!(adapters[3].inputs[0].temp, 49.875);
 
         assert_eq!(adapters[4].name, "nvme-pci-0100");
         assert_eq!(adapters[4].inputs[0].name, "Composite");
-        assert_eq!(adapters[4].inputs[0].temp, "37.85");
+        assert_eq!(adapters[4].inputs[0].temp, 37.85);
         assert_eq!(adapters[4].inputs[1].name, "Sensor 1");
-        assert_eq!(adapters[4].inputs[1].temp, "37.85");
+        assert_eq!(adapters[4].inputs[1].temp, 37.85);
         assert_eq!(adapters[4].inputs[2].name, "Sensor 2");
-        assert_eq!(adapters[4].inputs[2].temp, "38.85");
+        assert_eq!(adapters[4].inputs[2].temp, 38.85);
 
         assert_eq!(adapters[5].name, "nvme-pci-0500");
         assert_eq!(adapters[5].inputs[0].name, "Composite");
-        assert_eq!(adapters[5].inputs[0].temp, "41.85");
+        assert_eq!(adapters[5].inputs[0].temp, 41.85);
 
         assert_eq!(adapters[6].name, "thinkpad-isa-0000");
         assert_eq!(adapters[6].inputs[0].name, "CPU");
-        assert_eq!(adapters[6].inputs[0].temp, "50.0");
+        assert_eq!(adapters[6].inputs[0].temp, 50.0);
     }
 
     #[test]
@@ -387,40 +428,40 @@ mod tests {
 
         assert_eq!(adapters[0].name, "acpitz-acpi-0");
         assert_eq!(adapters[0].inputs[0].name, "temp1");
-        assert_eq!(adapters[0].inputs[0].temp, "46.0");
+        assert_eq!(adapters[0].inputs[0].temp, 46.0);
 
         assert_eq!(adapters[1].name, "coretemp-isa-0000");
         assert_eq!(adapters[1].inputs[0].name, "Core 0");
-        assert_eq!(adapters[1].inputs[0].temp, "47.0");
+        assert_eq!(adapters[1].inputs[0].temp, 47.0);
         assert_eq!(adapters[1].inputs[1].name, "Core 1");
-        assert_eq!(adapters[1].inputs[1].temp, "49.0");
+        assert_eq!(adapters[1].inputs[1].temp, 49.0);
         assert_eq!(adapters[1].inputs[2].name, "Core 2");
-        assert_eq!(adapters[1].inputs[2].temp, "51.0");
+        assert_eq!(adapters[1].inputs[2].temp, 51.0);
         assert_eq!(adapters[1].inputs[3].name, "Core 3");
-        assert_eq!(adapters[1].inputs[3].temp, "49.0");
+        assert_eq!(adapters[1].inputs[3].temp, 49.0);
         assert_eq!(adapters[1].inputs[4].name, "Package id 0");
-        assert_eq!(adapters[1].inputs[4].temp, "51.0");
+        assert_eq!(adapters[1].inputs[4].temp, 51.0);
 
         assert_eq!(adapters[2].name, "iwlwifi_1-virtual-0");
         assert_eq!(adapters[2].inputs[0].name, "temp1");
-        assert_eq!(adapters[2].inputs[0].temp, "54.0");
+        assert_eq!(adapters[2].inputs[0].temp, 54.0);
 
         assert_eq!(adapters[3].name, "nvme-pci-3d00");
         assert_eq!(adapters[3].inputs[0].name, "Composite");
-        assert_eq!(adapters[3].inputs[0].temp, "43.85");
+        assert_eq!(adapters[3].inputs[0].temp, 43.85);
         assert_eq!(adapters[3].inputs[1].name, "Sensor 1");
-        assert_eq!(adapters[3].inputs[1].temp, "43.85");
+        assert_eq!(adapters[3].inputs[1].temp, 43.85);
         assert_eq!(adapters[3].inputs[2].name, "Sensor 2");
-        assert_eq!(adapters[3].inputs[2].temp, "42.85");
+        assert_eq!(adapters[3].inputs[2].temp, 42.85);
 
         assert_eq!(adapters[4].name, "pch_cannonlake-virtual-0");
         assert_eq!(adapters[4].inputs[0].name, "temp1");
-        assert_eq!(adapters[4].inputs[0].temp, "43.0");
+        assert_eq!(adapters[4].inputs[0].temp, 43.0);
 
         assert_eq!(adapters[5].name, "thinkpad-isa-0000");
         assert_eq!(adapters[5].inputs[0].name, "CPU");
-        assert_eq!(adapters[5].inputs[0].temp, "46.0");
+        assert_eq!(adapters[5].inputs[0].temp, 46.0);
         assert_eq!(adapters[5].inputs[1].name, "temp5");
-        assert_eq!(adapters[5].inputs[1].temp, "34.0");
+        assert_eq!(adapters[5].inputs[1].temp, 34.0);
     }
 }
