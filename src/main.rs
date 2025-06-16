@@ -66,7 +66,8 @@ pub struct App {
     exit: bool,
     lines: Vec<String>,
     adapters: Vec<Adapter>,
-    write_fan: &'static str,
+    fan_command: &'static str,
+    current_error: String,
 }
 
 fn parse_adapters(json_str: &str) -> Vec<Adapter> {
@@ -124,7 +125,8 @@ impl App {
             exit: false,
             lines: Vec::new(),
             adapters: Vec::new(),
-            write_fan: "",
+            fan_command: "",
+            current_error: String::new(),
         }
     }
 
@@ -133,6 +135,10 @@ impl App {
         while !self.exit {
             self.read_temperatures();
             self.read_fan();
+            // Add error if present
+            if !self.current_error.is_empty() {
+                self.lines.push(self.current_error.clone());
+            }
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events()?;
         }
@@ -160,26 +166,23 @@ impl App {
                 }
             }
         }
-        if !self.write_fan.is_empty() {
-            write_to_fan(self.write_fan);
-            self.write_fan = "";
-        }
+        self.write_command_to_fan();
         Ok(())
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
-            KeyCode::Char('f') => self.write_fan = "level full-speed",
-            KeyCode::Char('a') => self.write_fan = "level auto",
-            KeyCode::Char('0') => self.write_fan = "level 0",
-            KeyCode::Char('1') => self.write_fan = "level 1",
-            KeyCode::Char('2') => self.write_fan = "level 2",
-            KeyCode::Char('3') => self.write_fan = "level 3",
-            KeyCode::Char('4') => self.write_fan = "level 4",
-            KeyCode::Char('5') => self.write_fan = "level 5",
-            KeyCode::Char('6') => self.write_fan = "level 6",
-            KeyCode::Char('7') => self.write_fan = "level 7",
+            KeyCode::Char('f') => self.fan_command = "level full-speed",
+            KeyCode::Char('a') => self.fan_command = "level auto",
+            KeyCode::Char('0') => self.fan_command = "level 0",
+            KeyCode::Char('1') => self.fan_command = "level 1",
+            KeyCode::Char('2') => self.fan_command = "level 2",
+            KeyCode::Char('3') => self.fan_command = "level 3",
+            KeyCode::Char('4') => self.fan_command = "level 4",
+            KeyCode::Char('5') => self.fan_command = "level 5",
+            KeyCode::Char('6') => self.fan_command = "level 6",
+            KeyCode::Char('7') => self.fan_command = "level 7",
             _ => {}
         }
     }
@@ -189,14 +192,36 @@ impl App {
     }
 
     fn read_fan(&mut self) {
-        let file = File::open(PATH_FAN).unwrap();
+        self.lines.clear();
+        let file = match File::open(PATH_FAN) {
+            Ok(f) => f,
+            Err(_) => {
+                self.current_error = "Failed to open file: ".to_string() + PATH_FAN;
+                return;
+            }
+        };
+
         let mut buffer = [0; 64];
         let mut handle = file.take(63);
-        handle.read(&mut buffer).unwrap();
-        let lines: Vec<&str> = std::str::from_utf8(&buffer).unwrap().lines().collect();
-        if lines.len() < 3 {
+
+        if let Err(_) = handle.read(&mut buffer) {
+            self.current_error = "Failed to read from file: ".to_string() + PATH_FAN;
             return;
         }
+
+        let lines: Vec<&str> = match std::str::from_utf8(&buffer) {
+            Ok(s) => s.lines().collect(),
+            Err(_) => {
+                self.current_error = "Invalid UTF-8 in file: ".to_string() + PATH_FAN;
+                return;
+            }
+        };
+
+        if lines.len() < 3 {
+            self.current_error = "Unexpected number of lines in file: ".to_string() + PATH_FAN;
+            return;
+        }
+
         self.lines = lines
             .iter()
             .take(3)
@@ -205,6 +230,22 @@ impl App {
                 format!("{} {:>10}", split[0], split[1])
             })
             .collect();
+    }
+
+    fn write_command_to_fan(&mut self) {
+        if self.fan_command.is_empty() {
+            return;
+        }
+
+        match std::fs::write(PATH_FAN, self.fan_command) {
+            Ok(_) => self.current_error = String::new(),
+            Err(_) => {
+                self.current_error =
+                    "Failed to write command '".to_string() + self.fan_command + "' to " + PATH_FAN
+            }
+        }
+
+        self.fan_command = "";
     }
 
     fn read_temperatures(&mut self) {
@@ -234,10 +275,6 @@ fn check_permissions() -> bool {
     };
     let metadata = f.metadata().unwrap();
     return !metadata.permissions().readonly();
-}
-
-fn write_to_fan(text: &str) {
-    std::fs::write(PATH_FAN, text).expect("Unable to write file");
 }
 
 fn lines_to_text(lines: &Vec<String>) -> Text {
@@ -273,7 +310,11 @@ impl Widget for &App {
             .title_bottom(instructions.centered())
             .border_set(border::THICK);
 
-        let areas = Layout::vertical([Constraint::Max(5), Constraint::Min(0)]).split(area);
+        let areas = Layout::vertical([
+            Constraint::Max(2 + self.lines.len() as u16),
+            Constraint::Min(0),
+        ])
+        .split(area);
 
         // Top info block
         Paragraph::new(lines_to_text(&self.lines))
