@@ -37,11 +37,15 @@ with the commands below.
 
 #### Ubuntu
 
-> sudo apt install lm-sensors policykit-1
+```
+sudo apt install lm-sensors policykit-1
+```
 
 #### Arch Linux
 
-> sudo pacman -S lm_sensors polkit
+```
+sudo pacman -S lm_sensors polkit
+```
 
 ### Installing
 
@@ -54,7 +58,9 @@ https://www.rust-lang.org/tools/install for installation instructions.
 After rust and cargo is installed you can install `thinkfan-tui` from
 crates.io by running:
 
-> cargo install thinkfan-tui
+```
+cargo install thinkfan-tui
+```
 
 #### Arch User Repository (AUR)
 
@@ -66,6 +72,15 @@ https://aur.archlinux.org/packages/thinkfan-tui
 There are also pre-built binaries available at
 https://github.com/karjonas/thinkfan-tui/releases. Unzip the binary,
 make it executable and run.
+
+## Troubleshooting
+
+If the application does not let you update the fan speeds, make sure that the `thinkpad_acpi` kernel module is loaded with fan control enabled. To reload it temporarily, run the following commands:
+
+```
+sudo modprobe -r thinkpad_acpi
+sudo modprobe thinkpad_acpi fan_control=1
+```
 
 ## Contributing
 
