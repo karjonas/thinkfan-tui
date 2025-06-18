@@ -1,0 +1,129 @@
+{
+    "ucsi_source_psy_USBC000:001-isa-0000": {
+        "Adapter": "ISA adapter",
+        "in0": {
+            "in0_input": 5.000000,
+            "in0_min": 5.000000,
+            "in0_max": 20.000000
+        },
+        "curr1": {
+            "curr1_input": 3.000000,
+            "curr1_max": 3.250000
+        }
+    },
+    "amdgpu-pci-c300": {
+        "Adapter": "PCI adapter",
+        "vddgfx": {
+            "in0_input": 1.296000
+        },
+        "vddnb": {
+            "in1_input": 0.630000
+        },
+        "edge": {
+            "temp1_input": 43.000000
+        },
+        "PPT": {
+            "power1_average": 6.135000,
+            "power1_input": 15.120000
+        },
+        "sclk": {
+            "freq1_input": 800000000.000000
+        }
+    },
+    "ath11k_hwmon-pci-0100": {
+        "Adapter": "PCI adapter",
+        "temp1": {
+            "temp1_input": 46.000000
+        }
+    },
+    "nvme-pci-0200": {
+        "Adapter": "PCI adapter",
+        "Composite": {
+            "temp1_input": 38.850000,
+            "temp1_max": 85.850000,
+            "temp1_min": -273.150000,
+            "temp1_crit": 86.850000,
+            "temp1_alarm": 0.000000
+        },
+        "Sensor 1": {
+            "temp2_input": 39.850000,
+            "temp2_max": 65261.850000,
+            "temp2_min": -273.150000
+        },
+        "Sensor 2": {
+            "temp3_input": 38.850000,
+            "temp3_max": 65261.850000,
+            "temp3_min": -273.150000
+        }
+    },
+    "acpitz-acpi-0": {
+        "Adapter": "ACPI interface",
+        "temp1": {
+            "temp1_input": 45.000000
+        }
+    },
+    "ucsi_source_psy_USBC000:002-isa-0000": {
+        "Adapter": "ISA adapter",
+        "in0": {
+            "in0_input": 0.000000,
+            "in0_min": 0.000000,
+            "in0_max": 0.000000
+        },
+        "curr1": {
+            "curr1_input": 0.000000,
+            "curr1_max": 0.000000
+        }
+    },
+    "k10temp-pci-00c3": {
+        "Adapter": "PCI adapter",
+        "Tctl": {
+            "temp1_input": 45.250000
+        }
+    },
+    "thinkpad-isa-0000": {
+        "Adapter": "ISA adapter",
+        "fan1": {
+            "fan1_input": 2771.000000
+        },
+        "fan2": {
+            "fan2_input": 2771.000000
+        },
+        "CPU": {
+            "temp1_input": 45.000000
+        },
+        "GPU": {},
+        "temp3": {
+            "temp3_input": 45.000000
+        },
+        "temp4": {
+            "temp4_input": 0.000000
+        },
+        "temp5": {},
+        "temp6": {
+            "temp6_input": 45.000000
+        },
+        "temp7": {
+            "temp7_input": 45.000000
+        },
+        "temp8": {},
+        "pwm1": {
+            "pwm1": 0.000000,
+            "pwm1_enable": 2.000000
+        }
+    },
+    "BAT0-acpi-0": {
+        "Adapter": "ACPI interface",
+        "in0": {
+            "in0_input": 16.753000
+        },
+        "power1": {
+            "power1_input": 5.360000
+        }
+    },
+    "acpi_fan-acpi-0": {
+        "Adapter": "ACPI interface",
+        "fan1": {
+            "fan1_input": 4500.000000
+        }
+    }
+}

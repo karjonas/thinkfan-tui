@@ -25,6 +25,7 @@ user by calling the `pkexec` command.
 ## Tested Laptops
 
 - T14s AMD Gen 1
+- T14s AMD Gen 4
 - T490
 - E14 Intel Gen 6
 

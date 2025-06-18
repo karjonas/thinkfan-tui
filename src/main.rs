@@ -423,7 +423,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sensors_t14s() {
+    fn sensors_t14s_amd_gen1() {
         let json_str: String = std::fs::read_to_string("testdata/sensors-t14s-amd-gen1").unwrap();
         let adapters = parse_adapters(json_str.as_str());
         assert_eq!(adapters.len(), 7);
@@ -459,6 +459,47 @@ mod tests {
         assert_eq!(adapters[6].name, "thinkpad-isa-0000");
         assert_eq!(adapters[6].inputs[0].name, "CPU");
         assert_eq!(adapters[6].inputs[0].temp, 50.0);
+    }
+
+    #[test]
+    fn sensors_t14s_amd_gen4() {
+        let json_str: String = std::fs::read_to_string("testdata/sensors-t14s-amd-gen4").unwrap();
+        let adapters = parse_adapters(json_str.as_str());
+        assert_eq!(adapters.len(), 6);
+
+        assert_eq!(adapters[0].name, "acpitz-acpi-0");
+        assert_eq!(adapters[0].inputs[0].name, "temp1");
+        assert_eq!(adapters[0].inputs[0].temp, 45.0);
+
+        assert_eq!(adapters[1].name, "amdgpu-pci-c300");
+        assert_eq!(adapters[1].inputs[0].name, "edge");
+        assert_eq!(adapters[1].inputs[0].temp, 43.0);
+
+        assert_eq!(adapters[2].name, "ath11k_hwmon-pci-0100");
+        assert_eq!(adapters[2].inputs[0].name, "temp1");
+        assert_eq!(adapters[2].inputs[0].temp, 46.0);
+
+        assert_eq!(adapters[3].name, "k10temp-pci-00c3");
+        assert_eq!(adapters[3].inputs[0].name, "Tctl");
+        assert_eq!(adapters[3].inputs[0].temp, 45.25);
+
+        assert_eq!(adapters[4].name, "nvme-pci-0200");
+        assert_eq!(adapters[4].inputs[0].name, "Composite");
+        assert_eq!(adapters[4].inputs[0].temp, 38.85);
+        assert_eq!(adapters[4].inputs[1].name, "Sensor 1");
+        assert_eq!(adapters[4].inputs[1].temp, 39.85);
+        assert_eq!(adapters[4].inputs[2].name, "Sensor 2");
+        assert_eq!(adapters[4].inputs[2].temp, 38.85);
+
+        assert_eq!(adapters[5].name, "thinkpad-isa-0000");
+        assert_eq!(adapters[5].inputs[0].name, "CPU");
+        assert_eq!(adapters[5].inputs[0].temp, 45.0);
+        assert_eq!(adapters[5].inputs[1].name, "temp3");
+        assert_eq!(adapters[5].inputs[1].temp, 45.0);
+        assert_eq!(adapters[5].inputs[2].name, "temp6");
+        assert_eq!(adapters[5].inputs[2].temp, 45.0);
+        assert_eq!(adapters[5].inputs[3].name, "temp7");
+        assert_eq!(adapters[5].inputs[3].temp, 45.0);
     }
 
     #[test]
