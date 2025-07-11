@@ -28,6 +28,7 @@ user by calling the `pkexec` command.
 - T14s AMD Gen 4
 - T490
 - E14 Intel Gen 6
+- ThinkPad P1 Gen 2
 
 ## Getting Started
 
