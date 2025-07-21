@@ -17,7 +17,6 @@ use ratatui::{
 };
 
 use ratatui::prelude::Constraint;
-use ratatui::prelude::Direction;
 use ratatui::prelude::Layout;
 
 use ratatui::prelude::Alignment;
@@ -68,6 +67,10 @@ pub struct App {
     adapters: Vec<Adapter>,
     fan_command: &'static str,
     current_error: String,
+    visible_rows: usize,
+    scroll_offset: usize,
+    start_row: usize,
+    end_row: usize,
 }
 
 fn parse_adapters(json_str: &str) -> Vec<Adapter> {
@@ -127,6 +130,10 @@ impl App {
             adapters: Vec::new(),
             fan_command: "",
             current_error: String::new(),
+            visible_rows: 0,
+            scroll_offset: 0,
+            start_row: 0,
+            end_row: 0,
         }
     }
 
@@ -139,6 +146,29 @@ impl App {
             if !self.current_error.is_empty() {
                 self.lines.push(self.current_error.clone());
             }
+
+            // Get terminal size
+            let terminal_height = terminal
+                .size()
+                .unwrap_or(ratatui::layout::Size::new(10000, 10000))
+                .height as usize;
+
+            // Calculate visible_rows for the bottom block (fan info block height + others)
+            // Subtract borders (2 above, 2 below) and lines. Rounds down to smallest even
+            // number to fit label and bar.
+            self.visible_rows = terminal_height.saturating_sub(2 + 2 + self.lines.len()) & !1;
+
+            // Total rows to scroll through
+            let total_inputs: usize = self.adapters.iter().map(|a| a.inputs.len()).sum();
+            let total_rows = total_inputs * 2;
+
+            // Clamp scroll_offset based on visible rows
+            let max_scroll = total_rows.saturating_sub(self.visible_rows);
+            self.scroll_offset = self.scroll_offset.min(max_scroll) & !1;
+
+            self.start_row = self.scroll_offset;
+            self.end_row = (self.scroll_offset + self.visible_rows).min(total_rows);
+
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events()?;
         }
@@ -183,6 +213,14 @@ impl App {
             KeyCode::Char('5') => self.fan_command = "level 5",
             KeyCode::Char('6') => self.fan_command = "level 6",
             KeyCode::Char('7') => self.fan_command = "level 7",
+            KeyCode::Down => self.scroll_offset = self.scroll_offset.saturating_add(2),
+            KeyCode::Up => self.scroll_offset = self.scroll_offset.saturating_sub(2),
+            KeyCode::PageDown => {
+                self.scroll_offset = self.scroll_offset.saturating_add(self.visible_rows)
+            }
+            KeyCode::PageUp => {
+                self.scroll_offset = self.scroll_offset.saturating_sub(self.visible_rows)
+            }
             _ => {}
         }
     }
@@ -331,90 +369,145 @@ impl Widget for &App {
             height: inner_area.height,
         };
 
-        // Check if we have enough space to render bars
-        let total_inputs: usize = self.adapters.iter().map(|a| a.inputs.len()).sum();
-        let min_required_height = total_inputs * 2;
-
-        let render_bars = padded_area.height as usize >= min_required_height;
-
-        let mut constraints = Vec::with_capacity(total_inputs * 2);
-        for _ in 0..total_inputs {
-            constraints.push(Constraint::Length(1)); // label
-            if render_bars {
-                constraints.push(Constraint::Length(1)); // bar
-            }
-        }
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(constraints)
-            .split(padded_area);
-
-        let mut i = 0;
+        // Flatten all adapter inputs
+        let mut rows: Vec<(&str, &str, f64)> = vec![];
         for adapter in &self.adapters {
             for input in &adapter.inputs {
-                let label = format!("{} | {}", adapter.name, input.name);
-                let fill_ratio = (input.temp / 100.0).clamp(0.0, 1.0);
-                let dot_color = match fill_ratio {
-                    t if t < 0.45 => GREEN_LIGHT,
-                    t if t < 0.75 => YELLOW_LIGHT,
-                    _ => RED_LIGHT,
-                };
-
-                let temp_spans = Line::from(vec![
-                    Span::raw(format!("{}°C ", input.temp as i8)),
-                    Span::styled("▊", Style::default().fg(dot_color)),
-                ]);
-
-                // Row: label + temperature
-                let row_chunks = Layout::horizontal([Constraint::Min(0), Constraint::Length(6)])
-                    .split(chunks[i]);
-
-                Paragraph::new(Line::from(Span::raw(label))).render(row_chunks[0], buf);
-                Paragraph::new(temp_spans)
-                    .alignment(Alignment::Right)
-                    .render(row_chunks[1], buf);
-
-                i += 1;
-
-                // Conditionally render the bar
-                if render_bars {
-                    let width = chunks[i].width as usize;
-                    let filled = (fill_ratio * width as f64).round() as usize;
-
-                    let spans: Vec<Span> = (0..width)
-                        .map(|idx| {
-                            let ratio = idx as f64 / width as f64;
-                            let color = if idx < filled {
-                                if ratio < 0.45 {
-                                    GREEN_LIGHT
-                                } else if ratio < 0.75 {
-                                    YELLOW_LIGHT
-                                } else {
-                                    RED_LIGHT
-                                }
-                            } else {
-                                if ratio < 0.45 {
-                                    GREEN_DARK
-                                } else if ratio < 0.75 {
-                                    YELLOW_DARK
-                                } else {
-                                    RED_DARK
-                                }
-                            };
-
-                            Span::styled("▀", Style::default().fg(color))
-                        })
-                        .collect();
-
-                    Paragraph::new(Line::from(spans)).render(chunks[i], buf);
-                    i += 1;
-                }
+                rows.push((&adapter.name, &input.name, input.temp));
             }
         }
 
-        // Final block border
+        let total_rows = rows.len() * 2;
+        let visible_rows = padded_area.height as usize & !1;
+
+        // Scroll clamping
+        let max_scroll = total_rows.saturating_sub(visible_rows);
+        let start_row = self.scroll_offset.min(max_scroll);
+        let end_row = (start_row + visible_rows).min(total_rows);
+
+        let first_input = start_row / 2;
+        let last_input = (end_row + 1) / 2;
+        let visible_inputs = &rows[first_input..last_input];
+
+        let mut constraints = Vec::with_capacity(visible_inputs.len() * 2);
+        for _ in visible_inputs {
+            constraints.push(Constraint::Length(1));
+            constraints.push(Constraint::Length(1));
+        }
+
+        let chunks = Layout::vertical(constraints).split(padded_area);
+
+        let show_scrollbar = total_rows > visible_rows;
+
+        // Render visible inputs and bars
+        let mut i = 0;
+        for (adapter_name, input_name, temp) in visible_inputs {
+            let label = format!("{} | {}", adapter_name, input_name);
+            let fill_ratio = (*temp / 100.0).clamp(0.0, 1.0);
+            let dot_color = match fill_ratio {
+                t if t < 0.45 => GREEN_LIGHT,
+                t if t < 0.75 => YELLOW_LIGHT,
+                _ => RED_LIGHT,
+            };
+
+            let temp_spans = Line::from(vec![
+                Span::raw(format!("{}°C ", *temp as i8)),
+                Span::styled("▊", Style::default().fg(dot_color)),
+            ]);
+
+            let row_chunks =
+                Layout::horizontal([Constraint::Min(0), Constraint::Length(8)]).split(chunks[i]);
+
+            Paragraph::new(Line::from(Span::raw(label))).render(row_chunks[0], buf);
+            Paragraph::new(temp_spans)
+                .alignment(Alignment::Right)
+                .render(row_chunks[1], buf);
+            i += 1;
+
+            // Render bar
+            let width = chunks[i].width as usize;
+            let filled = (fill_ratio * width as f64).round() as usize;
+
+            let spans: Vec<Span> = (0..width as usize)
+                .map(|idx| {
+                    let ratio = idx as f64 / width as f64;
+                    let color = if idx < filled {
+                        if ratio < 0.45 {
+                            GREEN_LIGHT
+                        } else if ratio < 0.75 {
+                            YELLOW_LIGHT
+                        } else {
+                            RED_LIGHT
+                        }
+                    } else {
+                        if ratio < 0.45 {
+                            GREEN_DARK
+                        } else if ratio < 0.75 {
+                            YELLOW_DARK
+                        } else {
+                            RED_DARK
+                        }
+                    };
+                    Span::styled("▀", Style::default().fg(color))
+                })
+                .collect();
+
+            Paragraph::new(Line::from(spans)).render(chunks[i], buf);
+            i += 1;
+        }
+
+        // Draw block border
         block_down.render(areas[1], buf);
+
+        // Scrollbar integration
+        let content_height = total_rows;
+        let visible_height = visible_rows;
+        let scrollbar_track_height = areas[1].height.saturating_sub(2); // inside border (excluding top/bottom)
+
+        if show_scrollbar && scrollbar_track_height >= 3 && content_height > visible_height {
+            let scroll_offset = self.scroll_offset.min(content_height - visible_height);
+            let effective_scroll_range = (content_height).max(visible_height);
+
+            let thumb_area_height = scrollbar_track_height.saturating_sub(2); // space for Up and Down
+
+            let thumb_height = ((visible_height as f64 / effective_scroll_range as f64)
+                * thumb_area_height as f64)
+                .round()
+                .clamp(1.0, thumb_area_height as f64) as u16;
+
+            // Calculate max scroll offset and thumb position
+            let max_scroll_offset = content_height - visible_height;
+            let max_thumb_start = thumb_area_height - thumb_height;
+            let scroll_fraction = scroll_offset as f64 / max_scroll_offset as f64;
+            let thumb_start = (scroll_fraction * max_thumb_start as f64).round() as u16;
+
+            let scrollbar_x = areas[1].x + areas[1].width - 1;
+            let track_top = areas[1].y + 2; // Start just inside the top border
+            let track_bottom = track_top + scrollbar_track_height - 2;
+
+            // Up arrow (1 row above track)
+            buf[(scrollbar_x, track_top - 1)]
+                .set_symbol("▲")
+                .set_style(Style::default().fg(Color::Gray));
+
+            // Down arrow (1 row below track)
+            buf[(scrollbar_x, track_bottom)]
+                .set_symbol("▼")
+                .set_style(Style::default().fg(Color::Gray));
+
+            // Draw scrollbar track with thumb
+            for i in 0..thumb_area_height {
+                let symbol = if i >= thumb_start && i < thumb_start + thumb_height {
+                    "█" // thumb
+                } else {
+                    "░" // track
+                };
+
+                buf[(scrollbar_x, track_top + i)]
+                    .set_symbol(symbol)
+                    .set_style(Style::default().fg(Color::Gray));
+            }
+        }
     }
 }
 
