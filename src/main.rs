@@ -71,6 +71,7 @@ pub struct App {
     scroll_offset: usize,
     start_row: usize,
     end_row: usize,
+    sort_by_temp: bool,
 }
 
 fn parse_adapters(json_str: &str) -> Vec<Adapter> {
@@ -134,6 +135,7 @@ impl App {
             scroll_offset: 0,
             start_row: 0,
             end_row: 0,
+            sort_by_temp: true,
         }
     }
 
@@ -213,6 +215,7 @@ impl App {
             KeyCode::Char('5') => self.fan_command = "level 5",
             KeyCode::Char('6') => self.fan_command = "level 6",
             KeyCode::Char('7') => self.fan_command = "level 7",
+            KeyCode::Char('s') => self.sort_by_temp = !self.sort_by_temp,
             KeyCode::Down => self.scroll_offset = self.scroll_offset.saturating_add(2),
             KeyCode::Up => self.scroll_offset = self.scroll_offset.saturating_sub(2),
             KeyCode::PageDown => {
@@ -335,6 +338,8 @@ impl Widget for &App {
             "<A>".bold(),
             ", Full ".into(),
             "<F>".bold(),
+            ", Sort ".into(),
+            "<S>".bold(),
             ", Quit ".into(),
             "<Q> ".bold(),
         ]);
@@ -375,6 +380,11 @@ impl Widget for &App {
             for input in &adapter.inputs {
                 rows.push((&adapter.name, &input.name, input.temp));
             }
+        }
+
+        // Sort by temperature (descending)
+        if self.sort_by_temp {
+            rows.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
         }
 
         let total_rows = rows.len() * 2;
