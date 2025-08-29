@@ -25,6 +25,7 @@ use ratatui::style::Style;
 use ratatui::text::Span;
 
 static PATH_FAN: &str = "/proc/acpi/ibm/fan";
+static PATH_MODULE_FAN_CONTROL: &str = "/sys/module/thinkpad_acpi/parameters/fan_control";
 
 // Light (foreground) filled bar colors
 static GREEN_LIGHT: Color = Color::Rgb(165, 183, 0); // #a5b700
@@ -37,8 +38,14 @@ static YELLOW_DARK: Color = Color::Rgb(94, 78, 40); // #5e4e28
 static RED_DARK: Color = Color::Rgb(76, 32, 32); // #4c2020
 
 fn main() -> io::Result<()> {
+    if !fan_control_enabled() {
+        eprintln!("Error: thinkpad_acpi module not loaded with fan_control=1");
+        eprintln!("Try: sudo modprobe thinkpad_acpi fan_control=1");
+        return Ok(());
+    }
+
     if !check_permissions() && !update_permissions() {
-        println!("Error: could not update permissions");
+        eprintln!("Error: could not update permissions");
         return Ok(());
     }
 
@@ -342,6 +349,16 @@ impl App {
             .expect("failed to run sensors command");
         let json_str = std::str::from_utf8(&output.stdout).unwrap();
         self.adapters = parse_adapters(json_str);
+    }
+}
+
+fn fan_control_enabled() -> bool {
+    match std::fs::read_to_string(PATH_MODULE_FAN_CONTROL) {
+        Ok(content) => {
+            let val = content.trim();
+            val == "Y" || val == "1" // some kernels use Y/N, others 1/0
+        }
+        Err(_) => false, // file missing => module not loaded or no permission
     }
 }
 
