@@ -46,7 +46,9 @@ enum Sorting {
 fn main() -> io::Result<()> {
     if !fan_control_enabled() {
         eprintln!("Error: thinkpad_acpi module not loaded with fan_control=1");
-        eprintln!("Try: sudo modprobe thinkpad_acpi fan_control=1");
+        eprintln!("To reload it temporarily, run the following commands:");
+        eprintln!("sudo modprobe -r thinkpad_acpi");
+        eprintln!("sudo modprobe thinkpad_acpi fan_control=1");
         return Ok(());
     }
 
