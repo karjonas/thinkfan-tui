@@ -37,6 +37,12 @@ static GREEN_DARK: Color = Color::Rgb(68, 68, 37); // #444425
 static YELLOW_DARK: Color = Color::Rgb(94, 78, 40); // #5e4e28
 static RED_DARK: Color = Color::Rgb(76, 32, 32); // #4c2020
 
+#[derive(Debug)]
+enum Sorting {
+    Name,
+    Temp,
+}
+
 fn main() -> io::Result<()> {
     if !fan_control_enabled() {
         eprintln!("Error: thinkpad_acpi module not loaded with fan_control=1");
@@ -79,7 +85,7 @@ pub struct App {
     scroll_offset: usize,
     start_row: usize,
     end_row: usize,
-    sort_by_temp: bool,
+    sorting: Sorting,
 }
 
 fn parse_adapters(json_str: &str) -> Vec<Adapter> {
@@ -144,7 +150,7 @@ impl App {
             scroll_offset: 0,
             start_row: 0,
             end_row: 0,
-            sort_by_temp: true,
+            sorting: Sorting::Temp,
         }
     }
 
@@ -268,7 +274,10 @@ impl App {
             KeyCode::Char('5') => self.fan_command = "level 5",
             KeyCode::Char('6') => self.fan_command = "level 6",
             KeyCode::Char('7') => self.fan_command = "level 7",
-            KeyCode::Char('s') => self.sort_by_temp = !self.sort_by_temp,
+            KeyCode::Char('s') => match self.sorting {
+                Sorting::Name => self.sorting = Sorting::Temp,
+                Sorting::Temp => self.sorting = Sorting::Name,
+            },
             KeyCode::Down => self.scroll_offset = self.scroll_offset.saturating_add(2),
             KeyCode::Up => self.scroll_offset = self.scroll_offset.saturating_sub(2),
             KeyCode::PageDown => {
@@ -394,6 +403,10 @@ impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title_up = Line::from(" Fan Info ".bold());
         let title_down = Line::from(" Temperatures ".bold());
+        let title_sort = match self.sorting {
+            Sorting::Name => Line::from(" Sort by: Name "),
+            Sorting::Temp => Line::from(" Sort by: Temp "),
+        };
 
         let block_up = Block::bordered()
             .title(title_up.centered())
@@ -404,6 +417,7 @@ impl Widget for &App {
             .title_bottom(
                 Line::from(vec![" Press ".into(), "?".bold(), " for help ".into()]).right_aligned(),
             )
+            .title_bottom(title_sort.left_aligned())
             .border_set(border::THICK);
 
         let areas = Layout::vertical([
@@ -436,9 +450,12 @@ impl Widget for &App {
         }
 
         // Sort by temperature (descending)
-        if self.sort_by_temp {
-            rows.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
-        }
+        match self.sorting {
+            Sorting::Name => {} // already sorted
+            Sorting::Temp => {
+                rows.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal))
+            }
+        };
 
         let total_rows = rows.len() * 2;
         let visible_rows = padded_area.height as usize & !1;
