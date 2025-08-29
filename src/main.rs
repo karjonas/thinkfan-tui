@@ -12,7 +12,7 @@ use ratatui::{
     style::Stylize,
     symbols::border,
     text::{Line, Text},
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, Clear, Padding, Paragraph, Widget},
     DefaultTerminal, Frame,
 };
 
@@ -63,6 +63,7 @@ pub struct Adapter {
 #[derive(Debug)]
 pub struct App {
     exit: bool,
+    show_help: bool,
     lines: Vec<String>,
     adapters: Vec<Adapter>,
     fan_command: &'static str,
@@ -127,6 +128,7 @@ impl App {
     pub fn new() -> Self {
         Self {
             exit: false,
+            show_help: false,
             lines: Vec::new(),
             adapters: Vec::new(),
             fan_command: "",
@@ -179,6 +181,48 @@ impl App {
 
     fn draw(&self, frame: &mut Frame) {
         frame.render_widget(self, frame.area());
+        let area = frame.area();
+
+        if self.show_help {
+            // Popup size
+            let help_width = std::cmp::min(40, area.width);
+            let help_height = std::cmp::min(18, area.height);
+            let help_x = area.x + (area.width.saturating_sub(help_width)) / 2;
+            let help_y = area.y + (area.height.saturating_sub(help_height)) / 2;
+            let help_area = Rect::new(help_x, help_y, help_width, help_height);
+
+            // Clear underlying widgets in that rectangle
+            frame.render_widget(Clear, help_area);
+
+            // The help text
+            let help_text = Text::from(vec![
+                Line::from("Fan control".bold()),
+                Line::from("  0–7       Specific level"),
+                Line::from("  A         Auto"),
+                Line::from("  F         Full speed"),
+                Line::from(""),
+                Line::from("Temperature".bold()),
+                Line::from("  S         Toggle sorting"),
+                Line::from("  ↑/↓       Scroll up/down"),
+                Line::from("  PgUp/PgDn Scroll page"),
+                Line::from(""),
+                Line::from("Global".bold()),
+                Line::from("  ?         Toggle help window"),
+                Line::from("  Esc       Close help window"),
+                Line::from("  Q         Quit"),
+            ]);
+
+            // Render the popup
+            Paragraph::new(help_text)
+                .alignment(Alignment::Left)
+                .block(
+                    Block::bordered()
+                        .title(Line::from(" Help ".bold()).centered())
+                        .border_set(border::THICK)
+                        .padding(Padding::uniform(1)),
+                )
+                .render(help_area, frame.buffer_mut());
+        }
     }
 
     /// updates the application's state based on user input
@@ -204,6 +248,8 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
+            KeyCode::Char('?') => self.show_help = !self.show_help,
+            KeyCode::Esc => self.show_help = false,
             KeyCode::Char('q') => self.exit(),
             KeyCode::Char('f') => self.fan_command = "level full-speed",
             KeyCode::Char('a') => self.fan_command = "level auto",
@@ -331,18 +377,6 @@ impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title_up = Line::from(" Fan Info ".bold());
         let title_down = Line::from(" Temperatures ".bold());
-        let instructions = Line::from(vec![
-            " Level ".into(),
-            "<0-7>".bold(),
-            ", Auto ".into(),
-            "<A>".bold(),
-            ", Full ".into(),
-            "<F>".bold(),
-            ", Sort ".into(),
-            "<S>".bold(),
-            ", Quit ".into(),
-            "<Q> ".bold(),
-        ]);
 
         let block_up = Block::bordered()
             .title(title_up.centered())
@@ -350,7 +384,9 @@ impl Widget for &App {
 
         let block_down = Block::bordered()
             .title(title_down.centered())
-            .title_bottom(instructions.centered())
+            .title_bottom(
+                Line::from(vec![" Press ".into(), "?".bold(), " for help ".into()]).right_aligned(),
+            )
             .border_set(border::THICK);
 
         let areas = Layout::vertical([
