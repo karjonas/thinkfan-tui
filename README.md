@@ -20,6 +20,8 @@ user by calling the `pkexec` command.
 | 0..7 | Set fan speed to specific level |
 | A    | Set fan speed to automatic      |
 | F    | Set fan speed to full           |
+| S    | Toggle sorting                  |
+| ?    | Show help window                |
 | Q    | Quit application                |
 
 ## Tested Laptops
