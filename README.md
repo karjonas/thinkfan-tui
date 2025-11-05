@@ -7,7 +7,7 @@ monitoring on ThinkPad laptops.
 
 ## How it Works?
 
-The application continously runs the `sensors` command to read
+The application continuously runs the `sensors` command to read
 temperatures and display these in the terminal. To control the fan speed,
 commands are written to the `/proc/acpi/ibm/fan` file. If the user lacks
 permissions to do so the owner of the file is changed to the current
