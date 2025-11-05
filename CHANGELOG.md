@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Use colored graphs for temperature
-- Exit on insufficent permissions
+- Exit on insufficient permissions
 - Handle errors on read/write failures
 
 ## [0.1.1] - 2025-01-10
