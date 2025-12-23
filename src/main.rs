@@ -52,9 +52,12 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
-    if !check_permissions() && !update_permissions() {
-        eprintln!("Error: could not update permissions");
-        return Ok(());
+    if !check_permissions() {
+        if let Err(err) = update_permissions() {
+            eprintln!("Error: could not update permissions:");
+            eprintln!("{}", err);
+            return Ok(());
+        }
     }
 
     let mut terminal = ratatui::init();
@@ -373,15 +376,25 @@ fn fan_control_enabled() -> bool {
     }
 }
 
-fn update_permissions() -> bool {
+fn update_permissions() -> Result<(), String> {
     let username = whoami::username();
     let output = Command::new("pkexec")
         .arg("chown")
         .arg(username)
         .arg(PATH_FAN)
         .output()
-        .expect("failed to run chown command");
-    return output.status.success() && output.status.code().unwrap_or(-1) == 0;
+        .map_err(|e| format!("Failed to execute sudo: {}", e))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!(
+            "chown command failed (exit code {:?}): {}",
+            output.status.code(),
+            stderr.trim()
+        ))
+    }
 }
 
 fn check_permissions() -> bool {
