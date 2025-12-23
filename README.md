@@ -11,7 +11,7 @@ The application continuously runs the `sensors` command to read
 temperatures and display these in the terminal. To control the fan speed,
 commands are written to the `/proc/acpi/ibm/fan` file. If the user lacks
 permissions to do so the owner of the file is changed to the current
-user by calling the `pkexec` command.
+user by calling the `chown` command.
 
 ## Keyboard Shortcuts
 
@@ -36,19 +36,19 @@ user by calling the `pkexec` command.
 
 ### Dependencies
 
-The project uses `lm-sensors` and `policykit`. These can be installed
+The project uses `lm-sensors` which can be installed
 with the commands below.
 
 #### Ubuntu
 
 ```
-sudo apt install lm-sensors policykit-1
+sudo apt install lm-sensors
 ```
 
 #### Arch Linux
 
 ```
-sudo pacman -S lm_sensors polkit
+sudo pacman -S lm_sensors
 ```
 
 ### Installing
