@@ -378,7 +378,8 @@ fn fan_control_enabled() -> bool {
 
 fn update_permissions() -> Result<(), String> {
     let username = whoami::username();
-    let output = Command::new("pkexec")
+
+    let output = Command::new("sudo")
         .arg("chown")
         .arg(username)
         .arg(PATH_FAN)
