@@ -392,7 +392,7 @@ fn check_permissions() -> bool {
     return !metadata.permissions().readonly();
 }
 
-fn lines_to_text(lines: &Vec<String>) -> Text {
+fn lines_to_text(lines: &Vec<String>) -> Text<'_> {
     return Text::from(
         lines
             .iter()
