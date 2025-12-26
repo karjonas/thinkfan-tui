@@ -1,0 +1,37 @@
+name: Build musl binary
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  linux-musl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      # Compute short git hash
+      - name: Compute hash
+        id: gitinfo
+        shell: bash
+        run: |
+          full_sha="${{ github.sha }}"
+          short_sha="${full_sha:0:7}"
+          echo "hash=$short_sha" >> $GITHUB_OUTPUT
+
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "thinkfan-tui-${{ steps.gitinfo.outputs.hash }}-x86_64-unknown-linux-musl"
+          path: target/x86_64-unknown-linux-musl/release/thinkfan-tui
