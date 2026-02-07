@@ -68,8 +68,10 @@ fn main() -> io::Result<()> {
 
 #[derive(Debug, Default, Clone)]
 pub struct Input {
+    display_name: String,
     name: String,
-    temp: f64,
+    value: f64,
+    is_temp: bool,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -100,7 +102,7 @@ fn parse_adapters(json_str: &str) -> Vec<Adapter> {
     let mut adapters = Vec::new();
 
     for adapter_name in json_obj.keys() {
-        let mut curr_inputs: Vec<(String, String)> = Vec::new();
+        let mut curr_inputs: Vec<(String, String, String, bool)> = Vec::new();
         let adapter = json_obj[adapter_name].as_object().unwrap();
 
         for input_key in adapter.keys() {
@@ -111,15 +113,21 @@ fn parse_adapters(json_str: &str) -> Vec<Adapter> {
 
             let input_obj = input.as_object().unwrap();
             for temp_key in input_obj.keys() {
+                let mut is_temp = true;
                 if !temp_key.contains("temp") || !temp_key.contains("input") {
-                    continue;
+                    is_temp = false;
                 }
 
                 if input_obj[temp_key] == 0.0 {
-                    continue;
+                    is_temp = false;
                 }
 
-                curr_inputs.push((input_key.clone(), input_obj[temp_key].to_string()));
+                curr_inputs.push((
+                    input_key.clone(),
+                    temp_key.clone(),
+                    input_obj[temp_key].to_string(),
+                    is_temp,
+                ));
             }
         }
 
@@ -130,10 +138,12 @@ fn parse_adapters(json_str: &str) -> Vec<Adapter> {
         let mut adapter = Adapter::default();
         adapter.name = adapter_name.clone();
 
-        for (name, temp) in curr_inputs {
+        for (display_name, name, value, is_temp) in curr_inputs {
             let mut input = Input::default();
+            input.display_name = display_name;
             input.name = name;
-            input.temp = temp.trim().parse::<f64>().unwrap_or(-99.0);
+            input.value = value.trim().parse::<f64>().unwrap_or(-99.0);
+            input.is_temp = is_temp;
             adapter.inputs.push(input);
         }
         adapters.push(adapter);
@@ -299,15 +309,44 @@ impl App {
         self.exit = true;
     }
 
+    fn read_pwm(&mut self) {
+        let mut line_percentage = String::new();
+        let mut line_enabled = String::new();
+        line_percentage = "lol".to_string();
+        // Find first adapter starting with "pwm" in its name
+        for adapter in &self.adapters {
+            for input in &adapter.inputs {
+                if !input.name.starts_with("pwm") {
+                    continue;
+                }
+
+                if input.name.ends_with("_enable") {
+                    line_enabled = format!("Mode: {:.0}", input.value);
+                } else {
+                    line_percentage = format!("PWM: {:.0}%", input.value);
+                }
+            }
+        }
+
+        self.lines = vec![line_percentage, line_enabled];
+    }
+
     fn read_fan(&mut self) {
         self.lines.clear();
         let file = match File::open(PATH_FAN) {
             Ok(f) => f,
             Err(_) => {
-                self.current_error = "Failed to open file: ".to_string() + PATH_FAN;
+                self.read_pwm();
+                self.current_error =
+                    "Failed to open file: ".to_string() + PATH_FAN + ". Using PWM fallback.";
                 return;
             }
         };
+
+        self.read_pwm();
+        //self.current_error =
+        //    "Failed to open file: ".to_string() + PATH_FAN + ". Using PWM fallback.";
+        return;
 
         let mut buffer = [0; 64];
         let mut handle = file.take(63);
@@ -461,7 +500,9 @@ impl Widget for &App {
         let mut rows: Vec<(&str, &str, f64)> = vec![];
         for adapter in &self.adapters {
             for input in &adapter.inputs {
-                rows.push((&adapter.name, &input.name, input.temp));
+                if input.is_temp {
+                    rows.push((&adapter.name, &input.display_name, input.value));
+                }
             }
         }
 
@@ -618,36 +659,36 @@ mod tests {
         assert_eq!(adapters.len(), 7);
 
         assert_eq!(adapters[0].name, "acpitz-acpi-0");
-        assert_eq!(adapters[0].inputs[0].name, "temp1");
-        assert_eq!(adapters[0].inputs[0].temp, 50.0);
+        assert_eq!(adapters[0].inputs[0].display_name, "temp1");
+        assert_eq!(adapters[0].inputs[0].value, 50.0);
 
         assert_eq!(adapters[1].name, "amdgpu-pci-0700");
-        assert_eq!(adapters[1].inputs[0].name, "edge");
-        assert_eq!(adapters[1].inputs[0].temp, 48.0);
+        assert_eq!(adapters[1].inputs[0].display_name, "edge");
+        assert_eq!(adapters[1].inputs[0].value, 48.0);
 
         assert_eq!(adapters[2].name, "iwlwifi_1-virtual-0");
-        assert_eq!(adapters[2].inputs[0].name, "temp1");
-        assert_eq!(adapters[2].inputs[0].temp, 43.0);
+        assert_eq!(adapters[2].inputs[0].display_name, "temp1");
+        assert_eq!(adapters[2].inputs[0].value, 43.0);
 
         assert_eq!(adapters[3].name, "k10temp-pci-00c3");
-        assert_eq!(adapters[3].inputs[0].name, "Tctl");
-        assert_eq!(adapters[3].inputs[0].temp, 49.875);
+        assert_eq!(adapters[3].inputs[0].display_name, "Tctl");
+        assert_eq!(adapters[3].inputs[0].value, 49.875);
 
         assert_eq!(adapters[4].name, "nvme-pci-0100");
-        assert_eq!(adapters[4].inputs[0].name, "Composite");
-        assert_eq!(adapters[4].inputs[0].temp, 37.85);
-        assert_eq!(adapters[4].inputs[1].name, "Sensor 1");
-        assert_eq!(adapters[4].inputs[1].temp, 37.85);
-        assert_eq!(adapters[4].inputs[2].name, "Sensor 2");
-        assert_eq!(adapters[4].inputs[2].temp, 38.85);
+        assert_eq!(adapters[4].inputs[0].display_name, "Composite");
+        assert_eq!(adapters[4].inputs[0].value, 37.85);
+        assert_eq!(adapters[4].inputs[1].display_name, "Sensor 1");
+        assert_eq!(adapters[4].inputs[1].value, 37.85);
+        assert_eq!(adapters[4].inputs[2].display_name, "Sensor 2");
+        assert_eq!(adapters[4].inputs[2].value, 38.85);
 
         assert_eq!(adapters[5].name, "nvme-pci-0500");
-        assert_eq!(adapters[5].inputs[0].name, "Composite");
-        assert_eq!(adapters[5].inputs[0].temp, 41.85);
+        assert_eq!(adapters[5].inputs[0].display_name, "Composite");
+        assert_eq!(adapters[5].inputs[0].value, 41.85);
 
         assert_eq!(adapters[6].name, "thinkpad-isa-0000");
-        assert_eq!(adapters[6].inputs[0].name, "CPU");
-        assert_eq!(adapters[6].inputs[0].temp, 50.0);
+        assert_eq!(adapters[6].inputs[0].display_name, "CPU");
+        assert_eq!(adapters[6].inputs[0].value, 50.0);
     }
 
     #[test]
@@ -657,38 +698,38 @@ mod tests {
         assert_eq!(adapters.len(), 6);
 
         assert_eq!(adapters[0].name, "acpitz-acpi-0");
-        assert_eq!(adapters[0].inputs[0].name, "temp1");
-        assert_eq!(adapters[0].inputs[0].temp, 45.0);
+        assert_eq!(adapters[0].inputs[0].display_name, "temp1");
+        assert_eq!(adapters[0].inputs[0].value, 45.0);
 
         assert_eq!(adapters[1].name, "amdgpu-pci-c300");
-        assert_eq!(adapters[1].inputs[0].name, "edge");
-        assert_eq!(adapters[1].inputs[0].temp, 43.0);
+        assert_eq!(adapters[1].inputs[0].display_name, "edge");
+        assert_eq!(adapters[1].inputs[0].value, 43.0);
 
         assert_eq!(adapters[2].name, "ath11k_hwmon-pci-0100");
-        assert_eq!(adapters[2].inputs[0].name, "temp1");
-        assert_eq!(adapters[2].inputs[0].temp, 46.0);
+        assert_eq!(adapters[2].inputs[0].display_name, "temp1");
+        assert_eq!(adapters[2].inputs[0].value, 46.0);
 
         assert_eq!(adapters[3].name, "k10temp-pci-00c3");
-        assert_eq!(adapters[3].inputs[0].name, "Tctl");
-        assert_eq!(adapters[3].inputs[0].temp, 45.25);
+        assert_eq!(adapters[3].inputs[0].display_name, "Tctl");
+        assert_eq!(adapters[3].inputs[0].value, 45.25);
 
         assert_eq!(adapters[4].name, "nvme-pci-0200");
-        assert_eq!(adapters[4].inputs[0].name, "Composite");
-        assert_eq!(adapters[4].inputs[0].temp, 38.85);
-        assert_eq!(adapters[4].inputs[1].name, "Sensor 1");
-        assert_eq!(adapters[4].inputs[1].temp, 39.85);
-        assert_eq!(adapters[4].inputs[2].name, "Sensor 2");
-        assert_eq!(adapters[4].inputs[2].temp, 38.85);
+        assert_eq!(adapters[4].inputs[0].display_name, "Composite");
+        assert_eq!(adapters[4].inputs[0].value, 38.85);
+        assert_eq!(adapters[4].inputs[1].display_name, "Sensor 1");
+        assert_eq!(adapters[4].inputs[1].value, 39.85);
+        assert_eq!(adapters[4].inputs[2].display_name, "Sensor 2");
+        assert_eq!(adapters[4].inputs[2].value, 38.85);
 
         assert_eq!(adapters[5].name, "thinkpad-isa-0000");
-        assert_eq!(adapters[5].inputs[0].name, "CPU");
-        assert_eq!(adapters[5].inputs[0].temp, 45.0);
-        assert_eq!(adapters[5].inputs[1].name, "temp3");
-        assert_eq!(adapters[5].inputs[1].temp, 45.0);
-        assert_eq!(adapters[5].inputs[2].name, "temp6");
-        assert_eq!(adapters[5].inputs[2].temp, 45.0);
-        assert_eq!(adapters[5].inputs[3].name, "temp7");
-        assert_eq!(adapters[5].inputs[3].temp, 45.0);
+        assert_eq!(adapters[5].inputs[0].display_name, "CPU");
+        assert_eq!(adapters[5].inputs[0].value, 45.0);
+        assert_eq!(adapters[5].inputs[1].display_name, "temp3");
+        assert_eq!(adapters[5].inputs[1].value, 45.0);
+        assert_eq!(adapters[5].inputs[2].display_name, "temp6");
+        assert_eq!(adapters[5].inputs[2].value, 45.0);
+        assert_eq!(adapters[5].inputs[3].display_name, "temp7");
+        assert_eq!(adapters[5].inputs[3].value, 45.0);
     }
 
     #[test]
@@ -698,41 +739,41 @@ mod tests {
         assert_eq!(adapters.len(), 6);
 
         assert_eq!(adapters[0].name, "acpitz-acpi-0");
-        assert_eq!(adapters[0].inputs[0].name, "temp1");
-        assert_eq!(adapters[0].inputs[0].temp, 46.0);
+        assert_eq!(adapters[0].inputs[0].display_name, "temp1");
+        assert_eq!(adapters[0].inputs[0].value, 46.0);
 
         assert_eq!(adapters[1].name, "coretemp-isa-0000");
-        assert_eq!(adapters[1].inputs[0].name, "Core 0");
-        assert_eq!(adapters[1].inputs[0].temp, 47.0);
-        assert_eq!(adapters[1].inputs[1].name, "Core 1");
-        assert_eq!(adapters[1].inputs[1].temp, 49.0);
-        assert_eq!(adapters[1].inputs[2].name, "Core 2");
-        assert_eq!(adapters[1].inputs[2].temp, 51.0);
-        assert_eq!(adapters[1].inputs[3].name, "Core 3");
-        assert_eq!(adapters[1].inputs[3].temp, 49.0);
-        assert_eq!(adapters[1].inputs[4].name, "Package id 0");
-        assert_eq!(adapters[1].inputs[4].temp, 51.0);
+        assert_eq!(adapters[1].inputs[0].display_name, "Core 0");
+        assert_eq!(adapters[1].inputs[0].value, 47.0);
+        assert_eq!(adapters[1].inputs[1].display_name, "Core 1");
+        assert_eq!(adapters[1].inputs[1].value, 49.0);
+        assert_eq!(adapters[1].inputs[2].display_name, "Core 2");
+        assert_eq!(adapters[1].inputs[2].value, 51.0);
+        assert_eq!(adapters[1].inputs[3].display_name, "Core 3");
+        assert_eq!(adapters[1].inputs[3].value, 49.0);
+        assert_eq!(adapters[1].inputs[4].display_name, "Package id 0");
+        assert_eq!(adapters[1].inputs[4].value, 51.0);
 
         assert_eq!(adapters[2].name, "iwlwifi_1-virtual-0");
-        assert_eq!(adapters[2].inputs[0].name, "temp1");
-        assert_eq!(adapters[2].inputs[0].temp, 54.0);
+        assert_eq!(adapters[2].inputs[0].display_name, "temp1");
+        assert_eq!(adapters[2].inputs[0].value, 54.0);
 
         assert_eq!(adapters[3].name, "nvme-pci-3d00");
-        assert_eq!(adapters[3].inputs[0].name, "Composite");
-        assert_eq!(adapters[3].inputs[0].temp, 43.85);
-        assert_eq!(adapters[3].inputs[1].name, "Sensor 1");
-        assert_eq!(adapters[3].inputs[1].temp, 43.85);
-        assert_eq!(adapters[3].inputs[2].name, "Sensor 2");
-        assert_eq!(adapters[3].inputs[2].temp, 42.85);
+        assert_eq!(adapters[3].inputs[0].display_name, "Composite");
+        assert_eq!(adapters[3].inputs[0].value, 43.85);
+        assert_eq!(adapters[3].inputs[1].display_name, "Sensor 1");
+        assert_eq!(adapters[3].inputs[1].value, 43.85);
+        assert_eq!(adapters[3].inputs[2].display_name, "Sensor 2");
+        assert_eq!(adapters[3].inputs[2].value, 42.85);
 
         assert_eq!(adapters[4].name, "pch_cannonlake-virtual-0");
-        assert_eq!(adapters[4].inputs[0].name, "temp1");
-        assert_eq!(adapters[4].inputs[0].temp, 43.0);
+        assert_eq!(adapters[4].inputs[0].display_name, "temp1");
+        assert_eq!(adapters[4].inputs[0].value, 43.0);
 
         assert_eq!(adapters[5].name, "thinkpad-isa-0000");
-        assert_eq!(adapters[5].inputs[0].name, "CPU");
-        assert_eq!(adapters[5].inputs[0].temp, 46.0);
-        assert_eq!(adapters[5].inputs[1].name, "temp5");
-        assert_eq!(adapters[5].inputs[1].temp, 34.0);
+        assert_eq!(adapters[5].inputs[0].display_name, "CPU");
+        assert_eq!(adapters[5].inputs[0].value, 46.0);
+        assert_eq!(adapters[5].inputs[1].display_name, "temp5");
+        assert_eq!(adapters[5].inputs[1].value, 34.0);
     }
 }
