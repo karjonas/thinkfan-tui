@@ -31,6 +31,7 @@ user by calling the `chown` command.
 - T490
 - E14 Intel Gen 6
 - ThinkPad P1 Gen 2
+- ThinkPad X13 Yoga Gen 2
 
 ## Getting Started
 
